@@ -9,9 +9,7 @@ export const getAllAttractions = () => {
 
 // 获取景点详情
 export const getAttractionDetail = (attractionID: number) => {
-  return axios.get(`${baseURL}/attraction/detail`, {
-    params: { attractionID }
-  });
+  return axios.get(`${baseURL}/attraction/detail/${attractionID}`);
 };
 
 // 搜索景点

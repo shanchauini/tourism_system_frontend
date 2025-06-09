@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { login, register, updateUserInfo } from '../api/user';
-import type { User } from '../types/index';
+import type { Tourist } from '../types/index';
 
 export const useUserStore = defineStore('user', () => {
-  const user = ref<User | null>(null);
+  const user = ref<Tourist | null>(null);//这里tourist之前是User
   const userType = ref<'tourist' | 'admin' | null>(null);
 
   // 登录

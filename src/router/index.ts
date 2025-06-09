@@ -6,78 +6,120 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'Home',
+      name: 'home',
       component: () => import('../views/Home.vue')
     },
     {
       path: '/login',
-      name: 'Login',
+      name: 'login',
       component: () => import('../views/Login.vue')
     },
     {
       path: '/register',
-      name: 'Register',
+      name: 'register',
       component: () => import('../views/Register.vue')
     },
     {
       path: '/attractions',
-      name: 'Attractions',
+      name: 'attractions',
       component: () => import('../views/Attractions.vue')
     },
     {
       path: '/attractions/:id',
-      name: 'AttractionDetail',
+      name: 'attraction-detail',
       component: () => import('../views/AttractionDetail.vue')
     },
     {
       path: '/articles',
-      name: 'Articles',
+      name: 'articles',
       component: () => import('../views/Articles.vue')
     },
     {
       path: '/articles/:id',
-      name: 'ArticleDetail',
+      name: 'article-detail',
       component: () => import('../views/ArticleDetail.vue')
     },
     {
-      path: '/articles/edit/:id?',
-      name: 'ArticleEdit',
-      component: () => import('../views/ArticleEdit.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
       path: '/user',
-      name: 'UserCenter',
+      name: 'user',
       component: () => import('../views/UserCenter.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: 'articles',
+          name: 'user-articles',
+          component: () => import('../views/Articles.vue'),
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'articles/edit/:id',
+          name: 'edit-article',
+          component: () => import('../views/ArticleEdit.vue'),
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'articles/new',
+          name: 'new-article',
+          component: () => import('../views/ArticleEdit.vue'),
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'orders',
+          name: 'user-orders',
+          component: () => import('../views/UserOrders.vue'),
+          meta: { requiresAuth: true }
+        }
+      ]
     },
+    // 管理员路由
     {
       path: '/admin',
-      name: 'AdminDashboard',
-      component: () => import('../views/AdminDashboard.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true }
+      component: () => import('../views/admin/AdminLayout.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+      children: [
+        {
+          path: 'dashboard',
+          name: 'admin-dashboard',
+          component: () => import('../views/admin/Dashboard.vue')
+        },
+        {
+          path: 'attractions',
+          name: 'admin-attractions',
+          component: () => import('../views/admin/AttractionsManagement.vue')
+        },
+        {
+          path: 'articles',
+          name: 'admin-articles',
+          component: () => import('../views/admin/ArticlesManagement.vue')
+        },
+        {
+          path: 'orders',
+          name: 'admin-orders',
+          component: () => import('../views/admin/OrdersManagement.vue')
+        },
+        {
+          path: 'users',
+          name: 'admin-users',
+          component: () => import('../views/admin/UsersManagement.vue')
+        }
+      ]
     }
   ]
 });
 
-// 导航守卫
+// 路由守卫
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore();
-  const isAuthenticated = userStore.checkAuth();
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+  const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin);
 
-  // 需要登录的页面
-  if (to.meta.requiresAuth && !isAuthenticated) {
+  if (requiresAuth && !userStore.user) {
     next('/login');
-    return;
-  }
-
-  // 需要管理员权限的页面
-  if (to.meta.requiresAdmin && userStore.userType !== 'admin') {
+  } else if (requiresAdmin && userStore.userType !== 'admin') {
     next('/');
-    return;
+  } else {
+    next();
   }
-
-  next();
 });
 
 export default router; 

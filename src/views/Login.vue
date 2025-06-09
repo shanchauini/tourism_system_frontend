@@ -46,6 +46,7 @@
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
+import { login, adminLogin } from '../api/user';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -61,18 +62,31 @@ const form = reactive({
 const handleSubmit = async () => {
   loading.value = true;
   try {
-    const success = isAdmin.value
-      ? await userStore.loginUser(form.userID, form.password)
-      : await userStore.loginUser(form.userID, form.password);//??
-
-    if (success) {
-      router.push(isAdmin.value ? '/admin' : '/home');
+    let response;
+    if (isAdmin.value) {
+      response = await adminLogin(form);
     } else {
-      alert('登录失败，请检查账号密码是否正确');
+      response = await login(form);
+    }
+    
+    if (response.data.success) {
+      userStore.user = response.data.data;
+      userStore.userType = isAdmin.value ? 'admin' : 'tourist';
+      sessionStorage.setItem('user', JSON.stringify(response.data.data));
+      sessionStorage.setItem('userType', isAdmin.value ? 'admin' : 'tourist');
+      
+      // 根据用户类型跳转到不同的首页
+      if (isAdmin.value) {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/');
+      }
+    } else {
+      alert(response.data.message || '登录失败');
     }
   } catch (error) {
-    console.error('Login error:', error);
-    alert('登录失败，请稍后重试');
+    console.error('登录失败:', error);
+    alert('登录失败，请检查账号密码是否正确');
   } finally {
     loading.value = false;
   }

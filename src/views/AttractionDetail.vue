@@ -103,6 +103,7 @@ import type { Attraction, Ticket } from '../types';
 import { getAttractionDetail } from '../api/attraction';
 import { createOrder } from '../api/order';
 import { useUserStore } from '../stores/user';
+import { ElMessage } from 'element-plus';
 
 const route = useRoute();
 const router = useRouter();
@@ -127,6 +128,7 @@ const totalPrice = computed(() => {
 onMounted(async () => {
   const attractionId = Number(route.params.id);
   if (isNaN(attractionId)) {
+    ElMessage.error('无效的景点ID');
     router.push('/attractions');
     return;
   }
@@ -135,11 +137,14 @@ onMounted(async () => {
     const response = await getAttractionDetail(attractionId);
     if (response.data.success) {
       attraction.value = response.data.data;
+      console.log('景点详情数据:', attraction.value);
     } else {
+      ElMessage.error(response.data.message || '获取景点详情失败');
       router.push('/attractions');
     }
   } catch (error) {
     console.error('Failed to fetch attraction details:', error);
+    ElMessage.error('获取景点详情失败，请稍后重试');
     router.push('/attractions');
   }
 });
