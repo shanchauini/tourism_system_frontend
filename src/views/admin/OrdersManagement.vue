@@ -341,7 +341,7 @@ onMounted(() => {
   fetchOrders();
 });
 </script>
-*/
+
 <style scoped>
 .orders-management {
   padding: 2rem;

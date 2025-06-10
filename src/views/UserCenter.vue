@@ -1,19 +1,10 @@
 <template>
   <div class="user-center">
-    <div class="user-header">
-      <h1>个人中心</h1>
-    </div>
-
-    <div class="user-content">
-      <div class="sidebar">
-        <div class="user-profile">
-          <div class="avatar">
-            <el-avatar :size="80" :src="userStore.user?.avatar || ''">
-              {{ userStore.user?.nickName?.charAt(0) || 'U' }}
-            </el-avatar>
-          </div>
-          <h3>{{ userStore.user?.nickName || '未设置昵称' }}</h3>
-          <p class="user-type">{{ userStore.user?.userType === 'ADMIN' ? '管理员' : '普通用户' }}</p>
+    <el-container>
+      <el-aside width="250px">
+        <div class="user-info">
+          <h2>{{ userStore.user?.nickname || userStore.user?.username }}</h2>
+          <p class="user-role">{{ userStore.user?.userType === 'ADMIN' ? '管理员' : '普通用户' }}</p>
         </div>
         <el-menu
           :default-active="activeMenu"
@@ -33,576 +24,623 @@
             <span>我的订单</span>
           </el-menu-item>
         </el-menu>
-      </div>
+      </el-aside>
 
-      <div class="main-content">
+      <el-main>
         <!-- 个人信息 -->
-        <div v-if="activeMenu === 'profile'" class="content-section">
-          <h2>个人信息</h2>
-          <el-form
-            ref="formRef"
-            :model="userForm"
-            :rules="rules"
-            label-width="100px"
-            class="info-form"
-          >
-            <el-form-item label="昵称" prop="nickname">
-              <el-input v-model="userForm.nickname" placeholder="请输入昵称" />
-            </el-form-item>
-            <el-form-item label="性别" prop="gender">
-              <el-select v-model="userForm.gender" placeholder="请选择性别">
-                <el-option label="男" value="男" />
-                <el-option label="女" value="女" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="手机号" prop="phone">
-              <el-input v-model="userForm.phone" placeholder="请输入手机号" />
-            </el-form-item>
-            <el-form-item label="所在地" prop="location">
-              <el-input v-model="userForm.location" placeholder="请输入所在地" />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="handleUpdateInfo" :loading="loading">
-                保存修改
-              </el-button>
-            </el-form-item>
-          </el-form>
+        <div v-if="activeMenu === 'profile'" class="profile-section">
+          <el-card>
+            <template #header>
+              <div class="card-header">
+                <span>个人信息</span>
+                <el-button type="primary" @click="handleEdit">编辑</el-button>
+              </div>
+            </template>
+            <div class="info-list">
+              <div class="info-item">
+                <span class="label">用户名：</span>
+                <span class="value">{{ userStore.user?.username }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">昵称：</span>
+                <span class="value">{{ userStore.user?.nickname }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">邮箱：</span>
+                <span class="value">{{ userStore.user?.email }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">手机：</span>
+                <span class="value">{{ userStore.user?.phone }}</span>
+              </div>
+            </div>
+          </el-card>
         </div>
 
         <!-- 我的文章 -->
-        <div v-if="activeMenu === 'articles'" class="content-section">
-          <div class="section-header">
-            <h2>我的文章</h2>
-            <router-link to="/user/articles/new">
-              <el-button type="primary">
-                <el-icon><Plus /></el-icon>写新文章
-              </el-button>
-            </router-link>
-          </div>
-          <div v-if="loading" class="loading">
-            <el-skeleton :rows="3" animated />
-          </div>
-          <div v-else-if="articles.length === 0" class="no-data">
-            <el-empty description="暂无文章" />
-          </div>
-          <div v-else class="article-list">
-            <el-card v-for="article in articles" :key="article.articleID" class="article-item">
-              <div class="article-header">
-                <h3>{{ article.title }}</h3>
-                <el-tag :type="getStateType(article.state.state)">
-                  {{ getStateText(article.state.state) }}
-                </el-tag>
+        <div v-if="activeMenu === 'articles'" class="articles-section">
+          <el-card>
+            <template #header>
+              <div class="card-header">
+                <span>我的文章</span>
+                <el-button type="primary" @click="handleAddArticle">写新文章</el-button>
               </div>
-              <div class="article-content">
-                <p>{{ getExcerpt(article.content) }}</p>
-              </div>
-              <div class="article-footer">
-                <span class="article-date">{{ formatDate(article.createTime) }}</span>
-                <div class="article-actions">
-                  <el-button-group>
-                    <el-button
-                      type="primary"
-                      link
-                      @click="handleEditArticle(article)"
-                    >
-                      编辑
-                    </el-button>
-                    <el-button
-                      v-if="article.state.canSubmit"
-                      type="success"
-                      link
-                      @click="handleSubmit(article)"
-                    >
-                      提交审核
-                    </el-button>
-                    <el-button
-                      v-if="article.state.canDelete"
-                      type="danger"
-                      link
-                      @click="handleDelete(article)"
-                    >
-                      删除
-                    </el-button>
-                  </el-button-group>
-                </div>
-              </div>
-            </el-card>
-          </div>
+            </template>
+            <el-table :data="articles" style="width: 100%">
+              <el-table-column prop="title" label="标题" />
+              <el-table-column prop="createTime" label="创建时间" width="180" />
+              <el-table-column prop="state" label="状态" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="getStateType(row.state)">{{ getStateText(row.state) }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="200">
+                <template #default="{ row }">
+                  <el-button 
+                    v-if="row.state === 'DRAFT'"
+                    type="primary" 
+                    size="small" 
+                    @click="handleEditArticle(row)"
+                  >
+                    编辑
+                  </el-button>
+                  <el-button 
+                    v-if="row.state === 'DRAFT'"
+                    type="success" 
+                    size="small" 
+                    @click="handleSubmitArticle(row)"
+                  >
+                    提交审核
+                  </el-button>
+                  <el-button 
+                    v-if="row.state === 'REJECTED'"
+                    type="warning" 
+                    size="small" 
+                    @click="handleResubmitArticle(row)"
+                  >
+                    重新提交
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
         </div>
 
         <!-- 我的订单 -->
-        <div v-if="activeMenu === 'orders'" class="content-section">
-          <h2>我的订单</h2>
-          <div v-if="loading" class="loading">
-            <el-skeleton :rows="3" animated />
-          </div>
-          <div v-else-if="orders.length === 0" class="no-data">
-            <el-empty description="暂无订单" />
-          </div>
-          <div v-else class="order-list">
-            <el-card v-for="order in orders" :key="order.orderID" class="order-item">
-              <div class="order-header">
-                <div class="order-info">
-                  <h3>订单号：{{ order.orderID }}</h3>
-                  <p class="order-date">{{ formatDate(order.createTime) }}</p>
-                </div>
-                <el-tag :type="getOrderStatusType(order.status)">
-                  {{ getStatusText(order.status) }}
-                </el-tag>
+        <div v-if="activeMenu === 'orders'" class="orders-section">
+          <el-card>
+            <template #header>
+              <div class="card-header">
+                <span>我的订单</span>
               </div>
-              <div class="order-content">
-                <div class="ticket-info">
-                  <h4>{{ order.attractionName }}</h4>
-                  <p>门票类型：{{ order.ticketType }}</p>
-                  <p>数量：{{ order.quantity }}</p>
-                  <p class="price">总价：¥{{ order.totalAmount }}</p>
-                </div>
-                <div class="order-actions">
-                  <el-button-group>
-                    <el-button
-                      v-if="order.status === 'PENDING'"
-                      type="primary"
-                      @click="handlePay(order)"
-                    >
-                      支付
-                    </el-button>
-                    <el-button
-                      v-if="order.status === 'PENDING'"
-                      type="danger"
-                      @click="handleCancel(order)"
-                    >
-                      取消
-                    </el-button>
-                    <el-button
-                      v-if="order.status === 'PAID'"
-                      type="warning"
-                      @click="handleRefund(order)"
-                    >
-                      申请退款
-                    </el-button>
-                  </el-button-group>
-                </div>
-              </div>
-            </el-card>
-          </div>
+            </template>
+            <el-table :data="orders" style="width: 100%">
+              <el-table-column prop="orderID" label="订单号" width="180" />
+              <el-table-column prop="attractionName" label="景点名称" />
+              <el-table-column prop="ticketType" label="门票类型" />
+              <el-table-column prop="quantity" label="数量" width="80" />
+              <el-table-column prop="totalAmount" label="总金额" width="120">
+                <template #default="{ row }">
+                  ¥{{ row.totalAmount }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="orderTime" label="下单时间" width="180" />
+              <el-table-column prop="orderStatus" label="状态" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="getOrderStatusType(row.orderStatus)">
+                    {{ getOrderStatusText(row.orderStatus) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="200">
+                <template #default="{ row }">
+                  <el-button 
+                    v-if="row.orderStatus === 'PENDING'"
+                    type="primary" 
+                    size="small" 
+                    @click="handlePayOrder(row)"
+                  >
+                    支付
+                  </el-button>
+                  <el-button 
+                    v-if="row.orderStatus === 'PENDING'"
+                    type="danger" 
+                    size="small" 
+                    @click="handleCancelOrder(row)"
+                  >
+                    取消
+                  </el-button>
+                  <el-button 
+                    v-if="row.orderStatus === 'PAID'"
+                    type="warning" 
+                    size="small" 
+                    @click="handleRefundOrder(row)"
+                  >
+                    申请退款
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
         </div>
-      </div>
-    </div>
+      </el-main>
+    </el-container>
+
+    <!-- 编辑个人信息对话框 -->
+    <el-dialog
+      v-model="editDialogVisible"
+      title="编辑个人信息"
+      width="500px"
+    >
+      <el-form
+        ref="editFormRef"
+        :model="editForm"
+        :rules="editRules"
+        label-width="80px"
+      >
+        <el-form-item label="昵称" prop="nickname">
+          <el-input v-model="editForm.nickname" />
+        </el-form-item>
+        <el-form-item label="邮箱" prop="email">
+          <el-input v-model="editForm.email" />
+        </el-form-item>
+        <el-form-item label="手机" prop="phone">
+          <el-input v-model="editForm.phone" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="editDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitEdit">确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 文章编辑对话框 -->
+    <el-dialog
+      v-model="articleDialogVisible"
+      :title="currentArticle ? '编辑文章' : '写新文章'"
+      width="800px"
+    >
+      <el-form
+        ref="articleFormRef"
+        :model="articleForm"
+        :rules="articleRules"
+        label-width="80px"
+      >
+        <el-form-item label="标题" prop="title">
+          <el-input v-model="articleForm.title" />
+        </el-form-item>
+        <el-form-item label="内容" prop="content">
+          <el-input
+            v-model="articleForm.content"
+            type="textarea"
+            :rows="10"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="articleDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitArticle">保存</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { User, Document, Tickets, Plus } from '@element-plus/icons-vue';
 import { useUserStore } from '../stores/user';
-import type { TicketOrder, Article } from '../types';
-import { updateUserInfo } from '../api/user';
-import { getUserOrders } from '../api/order';
-import { getUserArticles, submitForReview, deleteArticle } from '../api/article';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { User, Document, Tickets } from '@element-plus/icons-vue';
+import type { FormInstance } from 'element-plus';
+import { getUserArticles, createArticle, updateArticle, submitArticle } from '../api/article';
+import { getUserOrders, cancelOrder, refundOrder } from '../api/order';
+import { updateUserInfo } from '../api/user';
 
-const router = useRouter();
 const userStore = useUserStore();
-const loading = ref(false);
 const activeMenu = ref('profile');
+const articles = ref([]);
+const orders = ref([]);
+const loading = ref(false);
 
-const userForm = ref({
+// 编辑个人信息相关
+const editDialogVisible = ref(false);
+const editFormRef = ref<FormInstance>();
+const editForm = ref({
   nickname: '',
-  gender: '男',
-  phone: '',
-  location: ''
+  email: '',
+  phone: ''
 });
 
-const rules = {
-  nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
+const editRules = {
+  nickname: [
+    { required: true, message: '请输入昵称', trigger: 'blur' },
+    { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'blur' }
+  ],
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
+  ],
   phone: [
     { required: true, message: '请输入手机号', trigger: 'blur' },
     { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
   ]
 };
 
-const orders = ref<TicketOrder[]>([]);
-const articles = ref<Article[]>([]);
+// 文章相关
+const articleDialogVisible = ref(false);
+const articleFormRef = ref<FormInstance>();
+const currentArticle = ref(null);
+const articleForm = ref({
+  title: '',
+  content: ''
+});
 
-const handleMenuSelect = (key: string) => {
-  activeMenu.value = key;
+const articleRules = {
+  title: [
+    { required: true, message: '请输入标题', trigger: 'blur' },
+    { min: 2, max: 100, message: '长度在 2 到 100 个字符', trigger: 'blur' }
+  ],
+  content: [
+    { required: true, message: '请输入内容', trigger: 'blur' },
+    { min: 10, message: '内容不能少于 10 个字符', trigger: 'blur' }
+  ]
 };
 
-const handleUpdateInfo = async () => {
-  loading.value = true;
-  try {
-    const response = await updateUserInfo({
-      userID: userStore.user.userID,
-      ...userForm.value
-    });
-
-    if (response.data.success) {
-      ElMessage.success('个人信息更新成功');
-    } else {
-      ElMessage.error(response.data.message || '更新失败');
-    }
-  } catch (error) {
-    console.error('Failed to update user info:', error);
-    ElMessage.error('更新失败，请稍后重试');
-  } finally {
-    loading.value = false;
-  }
-};
-
-const fetchOrders = async () => {
-  loading.value = true;
-  try {
-    const response = await getUserOrders(userStore.user.userID);
-    if (response.data.success) {
-      orders.value = response.data.data;
-    }
-  } catch (error) {
-    console.error('Failed to fetch orders:', error);
-  } finally {
-    loading.value = false;
-  }
-};
-
+// 获取文章列表
 const fetchArticles = async () => {
-  loading.value = true;
   try {
-    const response = await getUserArticles(userStore.user.userID);
+    const response = await getUserArticles();
     if (response.data.success) {
       articles.value = response.data.data;
     }
   } catch (error) {
     console.error('Failed to fetch articles:', error);
-  } finally {
-    loading.value = false;
+    ElMessage.error('获取文章列表失败');
   }
 };
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
+// 获取订单列表
+const fetchOrders = async () => {
+  try {
+    const response = await getUserOrders();
+    if (response.data.success) {
+      orders.value = response.data.data;
+    }
+  } catch (error) {
+    console.error('Failed to fetch orders:', error);
+    ElMessage.error('获取订单列表失败');
+  }
+};
+
+// 菜单选择处理
+const handleMenuSelect = (key: string) => {
+  activeMenu.value = key;
+  if (key === 'articles') {
+    fetchArticles();
+  } else if (key === 'orders') {
+    fetchOrders();
+  }
+};
+
+// 编辑个人信息
+const handleEdit = () => {
+  editForm.value = {
+    nickname: userStore.user?.nickname || '',
+    email: userStore.user?.email || '',
+    phone: userStore.user?.phone || ''
+  };
+  editDialogVisible.value = true;
+};
+
+// 提交编辑
+const submitEdit = async () => {
+  if (!editFormRef.value) return;
+  
+  await editFormRef.value.validate(async (valid) => {
+    if (valid) {
+      try {
+        const response = await updateUserInfo({
+          userID: userStore.user?.userID || 0,
+          ...editForm.value
+        });
+
+        if (response.data.success) {
+          ElMessage.success('更新成功');
+          editDialogVisible.value = false;
+          // 更新用户信息
+          userStore.setUser(response.data.data);
+        } else {
+          ElMessage.error(response.data.message || '更新失败');
+        }
+      } catch (error) {
+        console.error('Failed to update user info:', error);
+        ElMessage.error('更新失败');
+      }
+    }
   });
 };
 
-const getStatusText = (status: string) => {
-  const statusMap: Record<string, string> = {
-    PENDING: '待支付',
-    PAID: '已支付',
-    CANCELLED: '已取消',
-    REFUNDED: '已退款'
+// 写新文章
+const handleAddArticle = () => {
+  currentArticle.value = null;
+  articleForm.value = {
+    title: '',
+    content: ''
   };
-  return statusMap[status] || status;
+  articleDialogVisible.value = true;
 };
 
-const getOrderStatusType = (status: string) => {
-  const typeMap: Record<string, string> = {
-    PENDING: 'warning',
-    PAID: 'success',
-    CANCELLED: 'info',
-    REFUNDED: 'info'
+// 编辑文章
+const handleEditArticle = (article: any) => {
+  currentArticle.value = article;
+  articleForm.value = {
+    title: article.title,
+    content: article.content
   };
-  return typeMap[status] || 'info';
+  articleDialogVisible.value = true;
 };
 
-const getStateText = (state: string) => {
-  const stateMap: Record<string, string> = {
-    DRAFT: '草稿',
-    PENDING: '待审核',
-    PUBLISHED: '已发布',
-    REJECTED: '已拒绝'
-  };
-  return stateMap[state] || state;
+// 提交文章
+const submitArticle = async () => {
+  if (!articleFormRef.value) return;
+  
+  await articleFormRef.value.validate(async (valid) => {
+    if (valid) {
+      try {
+        const response = currentArticle.value
+          ? await updateArticle({
+              articleID: currentArticle.value.articleID,
+              ...articleForm.value
+            })
+          : await createArticle(articleForm.value);
+
+        if (response.data.success) {
+          ElMessage.success(currentArticle.value ? '更新成功' : '创建成功');
+          articleDialogVisible.value = false;
+          fetchArticles();
+        } else {
+          ElMessage.error(response.data.message || (currentArticle.value ? '更新失败' : '创建失败'));
+        }
+      } catch (error) {
+        console.error('Failed to submit article:', error);
+        ElMessage.error(currentArticle.value ? '更新失败' : '创建失败');
+      }
+    }
+  });
 };
 
-const getStateType = (state: string) => {
-  const typeMap: Record<string, string> = {
-    DRAFT: 'info',
-    PENDING: 'warning',
-    PUBLISHED: 'success',
-    REJECTED: 'danger'
-  };
-  return typeMap[state] || 'info';
-};
-
-const getExcerpt = (content: string) => {
-  return content.length > 100 ? content.substring(0, 100) + '...' : content;
-};
-
-const handleEditArticle = (article: Article) => {
-  router.push(`/user/articles/edit/${article.articleID}`);
-};
-
-const handleSubmit = async (article: Article) => {
+// 提交文章审核
+const handleSubmitArticle = async (article: any) => {
   try {
-    await ElMessageBox.confirm('确定要提交该文章进行审核吗？', '提示', {
-      type: 'warning'
-    });
-
-    const response = await submitForReview(article.articleID);
+    const response = await submitArticle(article.articleID);
     if (response.data.success) {
-      ElMessage.success('提交成功，等待审核');
+      ElMessage.success('提交成功');
       fetchArticles();
     } else {
       ElMessage.error(response.data.message || '提交失败');
     }
   } catch (error) {
-    if (error !== 'cancel') {
-      console.error('Failed to submit article:', error);
-      ElMessage.error('提交失败');
-    }
+    console.error('Failed to submit article:', error);
+    ElMessage.error('提交失败');
   }
 };
 
-const handleDelete = async (article: Article) => {
+// 重新提交文章
+const handleResubmitArticle = (article: any) => {
+  handleEditArticle(article);
+};
+
+// 获取文章状态类型
+const getStateType = (state: string) => {
+  switch (state) {
+    case 'DRAFT':
+      return 'info';
+    case 'PENDING':
+      return 'warning';
+    case 'PUBLISHED':
+      return 'success';
+    case 'REJECTED':
+      return 'danger';
+    default:
+      return 'info';
+  }
+};
+
+// 获取文章状态文本
+const getStateText = (state: string) => {
+  switch (state) {
+    case 'DRAFT':
+      return '草稿';
+    case 'PENDING':
+      return '待审核';
+    case 'PUBLISHED':
+      return '已发布';
+    case 'REJECTED':
+      return '已拒绝';
+    default:
+      return '未知';
+  }
+};
+
+// 获取订单状态类型
+const getOrderStatusType = (status: string) => {
+  switch (status) {
+    case 'PENDING':
+      return 'warning';
+    case 'PAID':
+      return 'success';
+    case 'CANCELLED':
+      return 'info';
+    case 'REFUNDED':
+      return 'danger';
+    default:
+      return 'info';
+  }
+};
+
+// 获取订单状态文本
+const getOrderStatusText = (status: string) => {
+  switch (status) {
+    case 'PENDING':
+      return '待支付';
+    case 'PAID':
+      return '已支付';
+    case 'CANCELLED':
+      return '已取消';
+    case 'REFUNDED':
+      return '已退款';
+    default:
+      return '未知';
+  }
+};
+
+// 支付订单
+const handlePayOrder = async (order: any) => {
   try {
-    await ElMessageBox.confirm('确定要删除这篇文章吗？', '提示', {
-      type: 'warning'
+    const response = await createOrder({
+      orderID: order.orderID,
+      status: 'PAID'
     });
-    
-    const response = await deleteArticle(article.articleID);
     if (response.data.success) {
-      ElMessage.success('文章已删除');
-      fetchArticles();
+      ElMessage.success('支付成功');
+      fetchOrders();
     } else {
-      ElMessage.error(response.data.message || '删除失败');
+      ElMessage.error(response.data.message || '支付失败');
     }
   } catch (error) {
-    if (error !== 'cancel') {
-      console.error('Failed to delete article:', error);
-      ElMessage.error('删除失败，请稍后重试');
-    }
+    console.error('Failed to pay order:', error);
+    ElMessage.error('支付失败');
   }
 };
 
-const handlePay = (order: TicketOrder) => {
-  // TODO: 实现支付功能
-  ElMessage.info('支付功能开发中');
-};
-
-const handleCancel = async (order: TicketOrder) => {
+// 取消订单
+const handleCancelOrder = async (order: any) => {
   try {
     await ElMessageBox.confirm('确定要取消该订单吗？', '提示', {
       type: 'warning'
     });
-    // TODO: 实现取消订单功能
-    ElMessage.success('订单已取消');
-    fetchOrders();
+    
+    const response = await cancelOrder(order.orderID);
+    if (response.data.success) {
+      ElMessage.success('取消成功');
+      fetchOrders();
+    } else {
+      ElMessage.error(response.data.message || '取消失败');
+    }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Failed to cancel order:', error);
-      ElMessage.error('取消订单失败，请稍后重试');
+      ElMessage.error('取消失败');
     }
   }
 };
 
-const handleRefund = async (order: TicketOrder) => {
+// 申请退款
+const handleRefundOrder = async (order: any) => {
   try {
     await ElMessageBox.confirm('确定要申请退款吗？', '提示', {
       type: 'warning'
     });
-    // TODO: 实现退款功能
-    ElMessage.success('退款申请已提交');
-    fetchOrders();
+    
+    const response = await refundOrder(order.orderID);
+    if (response.data.success) {
+      ElMessage.success('申请成功');
+      fetchOrders();
+    } else {
+      ElMessage.error(response.data.message || '申请失败');
+    }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Failed to refund order:', error);
-      ElMessage.error('申请退款失败，请稍后重试');
+      ElMessage.error('申请失败');
     }
   }
 };
 
 onMounted(() => {
-  if (userStore.user) {
-    userForm.value = {
-      nickname: userStore.user.nickName || '',
-      gender: userStore.user.gender || '男',
-      phone: userStore.user.phone || '',
-      location: userStore.user.location || ''
-    };
-  }
-  fetchOrders();
   fetchArticles();
+  fetchOrders();
 });
 </script>
 
 <style scoped>
 .user-center {
-  min-height: 100vh;
+  min-height: calc(100vh - 60px);
   background-color: #f5f7fa;
-  padding: 2rem;
 }
 
-.user-header {
-  margin-bottom: 2rem;
+.el-container {
+  height: 100%;
 }
 
-.user-header h1 {
-  font-size: 2rem;
-  color: #333;
-  margin: 0;
-}
-
-.user-content {
-  display: flex;
-  gap: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.sidebar {
-  width: 280px;
-  flex-shrink: 0;
-}
-
-.user-profile {
+.el-aside {
   background-color: #fff;
-  padding: 2rem;
-  border-radius: 8px;
+  border-right: 1px solid #e6e6e6;
+}
+
+.user-info {
+  padding: 20px;
   text-align: center;
-  margin-bottom: 1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #e6e6e6;
 }
 
-.avatar {
-  margin-bottom: 1rem;
-}
-
-.user-profile h3 {
-  margin: 0.5rem 0;
+.user-info h2 {
+  margin: 0;
+  font-size: 18px;
   color: #333;
 }
 
-.user-type {
+.user-role {
+  margin: 10px 0 0;
   color: #666;
-  margin: 0;
+  font-size: 14px;
 }
 
 .user-menu {
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-right: none;
 }
 
-.main-content {
-  flex: 1;
-  min-width: 0;
+.el-main {
+  padding: 20px;
 }
 
-.content-section {
-  background-color: #fff;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.section-header h2 {
-  margin: 0;
-  color: #333;
-}
-
-.info-form {
-  max-width: 600px;
-}
-
-.article-list,
-.order-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.article-item,
-.order-item {
-  margin-bottom: 1rem;
-}
-
-.article-header,
-.order-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.article-header h3,
-.order-header h3 {
-  margin: 0;
-  color: #333;
-}
-
-.article-content {
-  color: #666;
-  margin-bottom: 1rem;
-}
-
-.article-footer,
-.order-content {
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.article-date,
-.order-date {
-  color: #999;
-  font-size: 0.9rem;
+.info-list {
+  padding: 20px 0;
 }
 
-.ticket-info {
-  flex: 1;
+.info-item {
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
 }
 
-.ticket-info h4 {
-  margin: 0 0 0.5rem 0;
-  color: #333;
-}
-
-.ticket-info p {
-  margin: 0.25rem 0;
+.info-item .label {
+  width: 80px;
   color: #666;
 }
 
-.price {
-  color: #f5222d;
-  font-weight: bold;
+.info-item .value {
+  flex: 1;
+  color: #333;
 }
 
-.loading {
-  padding: 2rem;
+.articles-section,
+.orders-section {
+  margin-top: 20px;
 }
 
-.no-data {
-  text-align: center;
-  padding: 3rem;
-  color: #999;
-}
-
-@media (max-width: 768px) {
-  .user-center {
-    padding: 1rem;
-  }
-
-  .user-content {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-  }
-
-  .content-section {
-    padding: 1rem;
-  }
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 </style> 

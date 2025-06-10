@@ -1,31 +1,51 @@
 <template>
   <div class="attractions-management">
-    <div class="header">
-      <h2>景点管理</h2>
-      <el-button type="primary" @click="handleAdd">
-        <el-icon><Plus /></el-icon>添加景点
-      </el-button>
-    </div>
+    <el-card>
+      <template #header>
+        <div class="card-header">
+          <span>景点管理</span>
+          <el-button type="primary" @click="handleAdd">添加景点</el-button>
+        </div>
+      </template>
 
-    <el-table :data="attractions" v-loading="loading" border>
-      <el-table-column prop="attractionName" label="景点名称" />
-      <el-table-column prop="attractionLevel" label="景点等级" />
-      <el-table-column prop="attractionAddress" label="地址" />
-      <el-table-column prop="openingHours" label="开放时间" />
-      <el-table-column label="操作" width="250">
-        <template #default="{ row }">
-          <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
-          <el-button type="primary" link @click="handleTickets(row)">门票管理</el-button>
-          <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+      <el-table :data="attractions" style="width: 100%" v-loading="loading">
+        <el-table-column prop="attractionName" label="景点名称" />
+        <el-table-column prop="attractionLevel" label="景点等级" width="120" />
+        <el-table-column prop="attractionAddress" label="地址" />
+        <el-table-column prop="openingHours" label="开放时间" width="180" />
+        <el-table-column label="操作" width="250">
+          <template #default="{ row }">
+            <el-button 
+              type="primary" 
+              size="small" 
+              @click="handleEdit(row)"
+            >
+              编辑
+            </el-button>
+            <el-button 
+              type="success" 
+              size="small" 
+              @click="handleTickets(row)"
+            >
+              门票管理
+            </el-button>
+            <el-button 
+              type="danger" 
+              size="small" 
+              @click="handleDelete(row)"
+            >
+              删除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
 
     <!-- 景点表单对话框 -->
     <el-dialog
-      :title="dialogType === 'add' ? '添加景点' : '编辑景点'"
       v-model="dialogVisible"
-      width="500px"
+      :title="currentAttraction ? '编辑景点' : '添加景点'"
+      width="800px"
     >
       <el-form
         ref="formRef"
@@ -41,6 +61,8 @@
             <el-option label="5A" value="5A" />
             <el-option label="4A" value="4A" />
             <el-option label="3A" value="3A" />
+            <el-option label="2A" value="2A" />
+            <el-option label="1A" value="1A" />
           </el-select>
         </el-form-item>
         <el-form-item label="地址" prop="attractionAddress">
@@ -49,75 +71,91 @@
         <el-form-item label="开放时间" prop="openingHours">
           <el-input v-model="form.openingHours" />
         </el-form-item>
-        <el-form-item label="景点介绍" prop="introduction">
-          <el-input
-            v-model="form.introduction"
-            type="textarea"
-            :rows="4"
-          />
-        </el-form-item>
         <el-form-item label="封面图片" prop="coverImage">
           <el-upload
-            class="avatar-uploader"
-            action="/api/upload"
+            class="cover-uploader"
+            :action="uploadUrl"
             :show-file-list="false"
             :on-success="handleUploadSuccess"
             :before-upload="beforeUpload"
           >
-            <img v-if="form.coverImage" :src="form.coverImage" class="avatar" />
-            <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
+            <img v-if="form.coverImage" :src="form.coverImage" class="cover-image" />
+            <el-icon v-else class="cover-uploader-icon"><Plus /></el-icon>
           </el-upload>
+        </el-form-item>
+        <el-form-item label="景点介绍" prop="introduction">
+          <el-input
+            v-model="form.introduction"
+            type="textarea"
+            :rows="6"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
+        <span class="dialog-footer">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitForm">确定</el-button>
+        </span>
       </template>
     </el-dialog>
 
     <!-- 门票管理对话框 -->
     <el-dialog
-      title="门票管理"
       v-model="ticketDialogVisible"
+      title="门票管理"
       width="800px"
     >
-      <div class="ticket-header">
-        <h3>{{ currentAttraction?.attractionName }} - 门票列表</h3>
-        <el-button type="primary" @click="handleAddTicket(currentAttraction)">
-          <el-icon><Plus /></el-icon>添加门票
-        </el-button>
-      </div>
+      <div v-if="currentAttraction" class="ticket-management">
+        <div class="ticket-header">
+          <h3>{{ currentAttraction.attractionName }} - 门票管理</h3>
+          <el-button type="primary" @click="handleAddTicket">添加门票</el-button>
+        </div>
 
-      <el-table :data="currentAttraction?.ticketList || []" border>
-        <el-table-column prop="type" label="门票类型" />
-        <el-table-column prop="price" label="价格">
-          <template #default="{ row }">
-            ¥{{ row.price }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="stock" label="库存">
-          <template #default="{ row }">
-            <el-input-number
-              v-model="row.stock"
-              :min="0"
-              @change="(val) => handleUpdateStock(row, val)"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column prop="description" label="说明" />
-        <el-table-column label="操作" width="150">
-          <template #default="{ row }">
-            <el-button type="primary" link @click="handleEditTicket(row)">编辑</el-button>
-            <el-button type="danger" link @click="handleDeleteTicket(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        <el-table :data="currentAttraction.ticketList || []" border>
+          <el-table-column prop="type" label="门票类型" />
+          <el-table-column prop="price" label="价格">
+            <template #default="{ row }">
+              ¥{{ row.price }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="stock" label="库存" width="120">
+            <template #default="{ row }">
+              <el-input-number
+                v-model="row.stock"
+                :min="0"
+                :max="9999"
+                size="small"
+                @change="(value) => handleStockChange(row.ticketID, value)"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column prop="description" label="说明" />
+          <el-table-column label="操作" width="150">
+            <template #default="{ row }">
+              <el-button 
+                type="primary" 
+                size="small" 
+                @click="handleEditTicket(row)"
+              >
+                编辑
+              </el-button>
+              <el-button 
+                type="danger" 
+                size="small" 
+                @click="handleDeleteTicket(row)"
+              >
+                删除
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
     </el-dialog>
 
     <!-- 门票表单对话框 -->
     <el-dialog
-      :title="ticketForm.ticketID === 0 ? '添加门票' : '编辑门票'"
       v-model="ticketFormVisible"
+      :title="currentTicket ? '编辑门票' : '添加门票'"
       width="500px"
     >
       <el-form
@@ -130,10 +168,19 @@
           <el-input v-model="ticketForm.type" />
         </el-form-item>
         <el-form-item label="价格" prop="price">
-          <el-input-number v-model="ticketForm.price" :min="0" :precision="2" />
+          <el-input-number
+            v-model="ticketForm.price"
+            :min="0"
+            :precision="2"
+            :step="10"
+          />
         </el-form-item>
         <el-form-item label="库存" prop="stock">
-          <el-input-number v-model="ticketForm.stock" :min="0" />
+          <el-input-number
+            v-model="ticketForm.stock"
+            :min="0"
+            :max="9999"
+          />
         </el-form-item>
         <el-form-item label="说明" prop="description">
           <el-input
@@ -144,8 +191,10 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="ticketFormVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleTicketSubmit">确定</el-button>
+        <span class="dialog-footer">
+          <el-button @click="ticketFormVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitTicketForm">确定</el-button>
+        </span>
       </template>
     </el-dialog>
   </div>
@@ -153,73 +202,83 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { Plus } from '@element-plus/icons-vue';
-import type { Attraction, Ticket } from '../../types';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { Plus } from '@element-plus/icons-vue';
+import type { FormInstance, UploadProps } from 'element-plus';
 import { getAllAttractions, addAttraction, updateAttraction, deleteAttraction } from '../../api/attraction';
-import { getTicketsByAttractionId,addTicket, updateTicket, deleteTicket, updateTicketStock } from '../../api/ticket';
-import { getAttractionDetail } from '../../api/attraction';
+import { getTicketsByAttractionId, addTicket, updateTicket, deleteTicket, updateTicketStock } from '../../api/ticket';
 
 const loading = ref(false);
-const attractions = ref<Attraction[]>([]);
-const currentPage = ref(1);
-const pageSize = ref(10);
-const total = ref(0);
-
+const attractions = ref([]);
 const dialogVisible = ref(false);
-const dialogType = ref<'add' | 'edit'>('add');
-const formRef = ref();
+const ticketDialogVisible = ref(false);
+const ticketFormVisible = ref(false);
+const currentAttraction = ref(null);
+const currentTicket = ref(null);
+const formRef = ref<FormInstance>();
+const ticketFormRef = ref<FormInstance>();
+
 const form = ref({
-  attractionID: 0,
   attractionName: '',
   attractionLevel: '',
   attractionAddress: '',
   openingHours: '',
-  introduction: '',
-  coverImage: ''
+  coverImage: '',
+  introduction: ''
 });
 
-const rules = {
-  attractionName: [{ required: true, message: '请输入景点名称', trigger: 'blur' }],
-  attractionLevel: [{ required: true, message: '请选择景点等级', trigger: 'change' }],
-  attractionAddress: [{ required: true, message: '请输入景点地址', trigger: 'blur' }],
-  openingHours: [{ required: true, message: '请输入开放时间', trigger: 'blur' }],
-  introduction: [{ required: true, message: '请输入景点介绍', trigger: 'blur' }]
-};
-
-const ticketDialogVisible = ref(false);
-const ticketFormVisible = ref(false);
-const ticketFormRef = ref();
 const ticketForm = ref({
-  ticketID: 0,
-  attractionID: 0,
   type: '',
   price: 0,
   stock: 0,
   description: ''
 });
 
-const ticketRules = {
-  type: [{ required: true, message: '请输入门票类型', trigger: 'blur' }],
-  price: [
-    { required: true, message: '请输入门票价格', trigger: 'blur' },
-    { type: 'number', min: 0, message: '价格必须大于0', trigger: 'blur' }
+const rules = {
+  attractionName: [
+    { required: true, message: '请输入景点名称', trigger: 'blur' },
+    { min: 2, max: 50, message: '长度在 2 到 50 个字符', trigger: 'blur' }
   ],
-  stock: [
-    { required: true, message: '请输入库存数量', trigger: 'blur' },
-    { type: 'number', min: 0, message: '库存必须大于0', trigger: 'blur' }
+  attractionLevel: [
+    { required: true, message: '请选择景点等级', trigger: 'change' }
+  ],
+  attractionAddress: [
+    { required: true, message: '请输入地址', trigger: 'blur' }
+  ],
+  openingHours: [
+    { required: true, message: '请输入开放时间', trigger: 'blur' }
+  ],
+  coverImage: [
+    { required: true, message: '请上传封面图片', trigger: 'change' }
+  ],
+  introduction: [
+    { required: true, message: '请输入景点介绍', trigger: 'blur' },
+    { min: 10, message: '内容不能少于 10 个字符', trigger: 'blur' }
   ]
 };
 
-const currentAttraction = ref<Attraction | null>(null);
+const ticketRules = {
+  type: [
+    { required: true, message: '请输入门票类型', trigger: 'blur' }
+  ],
+  price: [
+    { required: true, message: '请输入价格', trigger: 'blur' }
+  ],
+  stock: [
+    { required: true, message: '请输入库存', trigger: 'blur' }
+  ],
+  description: [
+    { required: true, message: '请输入说明', trigger: 'blur' }
+  ]
+};
 
+// 获取景点列表
 const fetchAttractions = async () => {
   loading.value = true;
   try {
     const response = await getAllAttractions();
     if (response.data.success) {
       attractions.value = response.data.data;
-      total.value = response.data.data.length;
     } else {
       ElMessage.error(response.data.message || '获取景点列表失败');
     }
@@ -231,43 +290,35 @@ const fetchAttractions = async () => {
   }
 };
 
-const handleSizeChange = (val: number) => {
-  pageSize.value = val;
-  fetchAttractions();
-};
-
-const handleCurrentChange = (val: number) => {
-  currentPage.value = val;
-  fetchAttractions();
-};
-
+// 添加景点
 const handleAdd = () => {
-  dialogType.value = 'add';
+  currentAttraction.value = null;
   form.value = {
-    attractionID: 0,
     attractionName: '',
     attractionLevel: '',
     attractionAddress: '',
     openingHours: '',
-    introduction: '',
-    coverImage: ''
+    coverImage: '',
+    introduction: ''
   };
   dialogVisible.value = true;
 };
 
-const handleEdit = (row: Attraction) => {
-  dialogType.value = 'edit';
-  form.value = { ...row };
+// 编辑景点
+const handleEdit = (attraction: any) => {
+  currentAttraction.value = attraction;
+  form.value = { ...attraction };
   dialogVisible.value = true;
 };
 
-const handleDelete = async (row: Attraction) => {
+// 删除景点
+const handleDelete = async (attraction: any) => {
   try {
     await ElMessageBox.confirm('确定要删除该景点吗？', '提示', {
       type: 'warning'
     });
-
-    const response = await deleteAttraction(row.attractionID);
+    
+    const response = await deleteAttraction(attraction.attractionID);
     if (response.data.success) {
       ElMessage.success('删除成功');
       fetchAttractions();
@@ -282,37 +333,72 @@ const handleDelete = async (row: Attraction) => {
   }
 };
 
-const handleSubmit = async () => {
+// 提交景点表单
+const submitForm = async () => {
   if (!formRef.value) return;
+  
+  await formRef.value.validate(async (valid) => {
+    if (valid) {
+      try {
+        const response = currentAttraction.value
+          ? await updateAttraction({
+              attractionID: currentAttraction.value.attractionID,
+              ...form.value
+            })
+          : await addAttraction(form.value);
 
-  try {
-    await formRef.value.validate();
-    
-    const response = dialogType.value === 'add'
-      ? await addAttraction(form.value)
-      : await updateAttraction(form.value);
-
-    if (response.data.success) {
-      ElMessage.success(dialogType.value === 'add' ? '添加成功' : '编辑成功');
-      dialogVisible.value = false;
-      fetchAttractions();
-    } else {
-      ElMessage.error(response.data.message || '操作失败');
+        if (response.data.success) {
+          ElMessage.success(currentAttraction.value ? '更新成功' : '添加成功');
+          dialogVisible.value = false;
+          fetchAttractions();
+        } else {
+          ElMessage.error(response.data.message || (currentAttraction.value ? '更新失败' : '添加失败'));
+        }
+      } catch (error) {
+        console.error('Failed to submit attraction:', error);
+        ElMessage.error(currentAttraction.value ? '更新失败' : '添加失败');
+      }
     }
-  } catch (error) {
-    console.error('Failed to submit form:', error);
-    ElMessage.error('操作失败');
+  });
+};
+
+// 图片上传相关
+const uploadUrl = import.meta.env.VITE_API_BASE_URL + '/upload';
+
+const beforeUpload: UploadProps['beforeUpload'] = (file) => {
+  const isImage = file.type.startsWith('image/');
+  const isLt2M = file.size / 1024 / 1024 < 2;
+
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件！');
+    return false;
+  }
+  if (!isLt2M) {
+    ElMessage.error('图片大小不能超过 2MB！');
+    return false;
+  }
+  return true;
+};
+
+const handleUploadSuccess: UploadProps['onSuccess'] = (response) => {
+  if (response.success) {
+    form.value.coverImage = response.data.url;
+  } else {
+    ElMessage.error('上传失败');
   }
 };
 
-const handleTickets = async (row: Attraction) => {
-  currentAttraction.value = row;
-  ticketDialogVisible.value = true;
-  // 获取该景点的门票列表
+// 门票管理相关
+const handleTickets = async (attraction: any) => {
+  currentAttraction.value = attraction;
   try {
-    const response = await getTicketsByAttractionId(row.attractionID);//
+    const response = await getTicketsByAttractionId(attraction.attractionID);
     if (response.data.success) {
-      currentAttraction.value = response.data.data;
+      currentAttraction.value = {
+        ...attraction,
+        ticketList: response.data.data
+      };
+      ticketDialogVisible.value = true;
     } else {
       ElMessage.error(response.data.message || '获取门票列表失败');
     }
@@ -322,10 +408,10 @@ const handleTickets = async (row: Attraction) => {
   }
 };
 
-const handleAddTicket = (attraction: Attraction) => {
+// 添加门票
+const handleAddTicket = () => {
+  currentTicket.value = null;
   ticketForm.value = {
-    ticketID: 0,
-    attractionID: attraction.attractionID,
     type: '',
     price: 0,
     stock: 0,
@@ -334,21 +420,24 @@ const handleAddTicket = (attraction: Attraction) => {
   ticketFormVisible.value = true;
 };
 
-const handleEditTicket = (ticket: Ticket) => {
+// 编辑门票
+const handleEditTicket = (ticket: any) => {
+  currentTicket.value = ticket;
   ticketForm.value = { ...ticket };
   ticketFormVisible.value = true;
 };
 
-const handleDeleteTicket = async (ticket: Ticket) => {
+// 删除门票
+const handleDeleteTicket = async (ticket: any) => {
   try {
     await ElMessageBox.confirm('确定要删除该门票吗？', '提示', {
       type: 'warning'
     });
-
+    
     const response = await deleteTicket(ticket.ticketID);
     if (response.data.success) {
       ElMessage.success('删除成功');
-      fetchAttractions();
+      handleTickets(currentAttraction.value);
     } else {
       ElMessage.error(response.data.message || '删除失败');
     }
@@ -360,35 +449,12 @@ const handleDeleteTicket = async (ticket: Ticket) => {
   }
 };
 
-const handleTicketSubmit = async () => {
-  if (!ticketFormRef.value) return;
-
+// 更新门票库存
+const handleStockChange = async (ticketID: number, value: number) => {
   try {
-    await ticketFormRef.value.validate();
-    
-    const response = ticketForm.value.ticketID === 0
-      ? await addTicket(ticketForm.value)
-      : await updateTicket(ticketForm.value);
-
+    const response = await updateTicketStock(ticketID, value);
     if (response.data.success) {
-      ElMessage.success(ticketForm.value.ticketID === 0 ? '添加成功' : '编辑成功');
-      ticketFormVisible.value = false;
-      fetchAttractions();
-    } else {
-      ElMessage.error(response.data.message || '操作失败');
-    }
-  } catch (error) {
-    console.error('Failed to submit ticket form:', error);
-    ElMessage.error('操作失败');
-  }
-};
-
-const handleUpdateStock = async (ticket: Ticket, newStock: number) => {
-  try {
-    const response = await updateTicketStock(ticket.ticketID, newStock);
-    if (response.data.success) {
-      ElMessage.success('库存更新成功');
-      fetchAttractions();
+      ElMessage.success('更新成功');
     } else {
       ElMessage.error(response.data.message || '更新失败');
     }
@@ -398,22 +464,37 @@ const handleUpdateStock = async (ticket: Ticket, newStock: number) => {
   }
 };
 
-const handleUploadSuccess = (response: any) => {
-  form.value.coverImage = response.url;
-};
+// 提交门票表单
+const submitTicketForm = async () => {
+  if (!ticketFormRef.value || !currentAttraction.value) return;
+  
+  await ticketFormRef.value.validate(async (valid) => {
+    if (valid) {
+      try {
+        const response = currentTicket.value
+          ? await updateTicket({
+              ticketID: currentTicket.value.ticketID,
+              attractionID: currentAttraction.value.attractionID,
+              ...ticketForm.value
+            })
+          : await addTicket({
+              attractionID: currentAttraction.value.attractionID,
+              ...ticketForm.value
+            });
 
-const beforeUpload = (file: File) => {
-  const isImage = file.type.startsWith('image/');
-  if (!isImage) {
-    ElMessage.error('只能上传图片文件！');
-    return false;
-  }
-  const isLt2M = file.size / 1024 / 1024 < 2;
-  if (!isLt2M) {
-    ElMessage.error('图片大小不能超过 2MB！');
-    return false;
-  }
-  return true;
+        if (response.data.success) {
+          ElMessage.success(currentTicket.value ? '更新成功' : '添加成功');
+          ticketFormVisible.value = false;
+          handleTickets(currentAttraction.value);
+        } else {
+          ElMessage.error(response.data.message || (currentTicket.value ? '更新失败' : '添加失败'));
+        }
+      } catch (error) {
+        console.error('Failed to submit ticket:', error);
+        ElMessage.error(currentTicket.value ? '更新失败' : '添加失败');
+      }
+    }
+  });
 };
 
 onMounted(() => {
@@ -426,11 +507,44 @@ onMounted(() => {
   padding: 20px;
 }
 
-.header {
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+}
+
+.cover-uploader {
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  width: 300px;
+  height: 200px;
+}
+
+.cover-uploader:hover {
+  border-color: #409eff;
+}
+
+.cover-uploader-icon {
+  font-size: 28px;
+  color: #8c939d;
+  width: 300px;
+  height: 200px;
+  line-height: 200px;
+  text-align: center;
+}
+
+.cover-image {
+  width: 300px;
+  height: 200px;
+  display: block;
+  object-fit: cover;
+}
+
+.ticket-management {
+  padding: 20px;
 }
 
 .ticket-header {
@@ -440,32 +554,15 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.avatar-uploader {
-  border: 1px dashed #d9d9d9;
-  border-radius: 6px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  width: 178px;
-  height: 178px;
+.ticket-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
 }
 
-.avatar-uploader:hover {
-  border-color: #409eff;
-}
-
-.avatar-uploader-icon {
-  font-size: 28px;
-  color: #8c939d;
-  width: 178px;
-  height: 178px;
-  text-align: center;
-  line-height: 178px;
-}
-
-.avatar {
-  width: 178px;
-  height: 178px;
-  display: block;
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 </style> 

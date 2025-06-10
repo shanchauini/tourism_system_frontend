@@ -8,8 +8,11 @@ export const getAllAttractions = () => {
 };
 
 // 获取景点详情
+//这里string之前是number
 export const getAttractionDetail = (attractionID: number) => {
-  return axios.get(`${baseURL}/attraction/detail/${attractionID}`);
+  return axios.get(`${baseURL}/attraction/detail`, {
+    params: { attractionID } // 改为查询参数
+  });
 };
 
 // 搜索景点

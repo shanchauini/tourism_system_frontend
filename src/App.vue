@@ -7,17 +7,17 @@
         </div>
         <div class="navbar-menu">
           <template v-if="userStore.userType === 'admin'">
-            <router-link to="/admin/dashboard" class="nav-item">控制台</router-link>
+            <!-- <router-link to="/admin/dashboard" class="nav-item">控制台</router-link> -->
             <router-link to="/admin/attractions" class="nav-item">景点管理</router-link>
             <router-link to="/admin/articles" class="nav-item">文章管理</router-link>
-            <router-link to="/admin/orders" class="nav-item">订单管理</router-link>
-            <router-link to="/admin/users" class="nav-item">用户管理</router-link>
+            <!-- <router-link to="/admin/orders" class="nav-item">订单管理</router-link> -->
+            <!-- <router-link to="/admin/users" class="nav-item">用户管理</router-link> -->
             <a @click="handleLogout" class="nav-item">退出</a>
           </template>
           <template v-else-if="userStore.userType === 'tourist'">
             <router-link to="/attractions" class="nav-item">景点</router-link>
             <router-link to="/articles" class="nav-item">文章</router-link>
-            <router-link to="/user" class="nav-item">个人中心</router-link>
+            <router-link to="/user/UserCenter" class="nav-item">个人中心</router-link>
             <a @click="handleLogout" class="nav-item">退出</a>
           </template>
           <template v-else>

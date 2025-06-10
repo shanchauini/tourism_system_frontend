@@ -40,7 +40,7 @@
           <p class="attraction-intro">{{ attraction.introduction }}</p>
           <div class="attraction-footer">
             <span class="opening-hours">开放时间：{{ attraction.openingHours }}</span>
-            <router-link :to="`/attraction/${attraction.attractionID}`" class="view-detail">
+            <router-link :to="`/attractions/${attraction.attractionID}`" class="view-detail">
               查看详情
             </router-link>
           </div>
